@@ -423,3 +423,58 @@ def skills_occ_industry_processing(df, rename_granular_skills = False):
         df_combined = df_combined.rename(columns = skill_mappings)
         
     return df_combined
+
+
+
+    # Function for Processing data before regression (initially in Pre-Regression Processing.ipynb)
+
+    # Subsets data for regression, sets the actual no data, then drops NA values
+
+def subset_dropna(data, keep_only_employed = False):
+
+    data_subset = data[['GENDER_R', 'YRSQUAL', 'INDUSTRY', 'OCCUPATION_1D', 'OCCUPATION', 'EMPLOYMENT_STATUS', 'CONTRACTTYPE', 'HRSWORKPERWEEK',
+                       'WORK_EXPERIENCE', 'YEARSTARTWORKINGFOREMPLOYER', 'BIZSIZE', 'AGE', 'AGE_BIN', 'INCOME', 'COUNTRY', 'YEAR',
+                       'IS_EMPLOYED', 'WRITING_AVG', 'READING_AVG', 'NUMERACY_AVG', 'ICT_AVG', 'PLANNING_AVG', 'INFLUENCE_AVG', 
+                       'PHYSICAL_AVG', 'KNOWLEDGE_AVG', 'LEADERSHIP_AVG', 'LITERACY_SCORE', 'NUMERACY_SCORE', 'DIGITAL_SCORE']]
+
+    data_subset['DIGITAL_SCORE'] = data_subset['DIGITAL_SCORE'].fillna('No data')
+    data_subset_employed = data_subset.loc[data_subset['IS_EMPLOYED'] == True, :]
+    data_subset_employed = data_subset_employed.dropna()
+
+    data_subset_not_employed = data_subset.loc[data_subset['IS_EMPLOYED'] == False, :]
+
+    # Fill in people who have missing data - should be excluded
+    data_subset_not_employed[['YRSQUAL', 'EMPLOYMENT_STATUS', 'WORK_EXPERIENCE', 'INCOME']] = \
+    data_subset_not_employed[['YRSQUAL', 'EMPLOYMENT_STATUS', 'WORK_EXPERIENCE', 'INCOME']].fillna('No data')
+
+    # If your employment status is unknown, then other employment-related info is unknown
+    data_subset_not_employed.loc[data_subset_not_employed['EMPLOYMENT_STATUS'] == 'No data', 
+                                 ['INDUSTRY', 'OCCUPATION_1D', 'OCCUPATION', 'CONTRACTTYPE', 'HRSWORKPERWEEK', 'YEARSTARTWORKINGFOREMPLOYER',
+                                 'BIZSIZE', 'INCOME', 'IS_EMPLOYED']] = 'No data'
+
+    cols_to_set_none = ['INDUSTRY', 'OCCUPATION_1D', 'OCCUPATION', 'CONTRACTTYPE', 'HRSWORKPERWEEK', 'YEARSTARTWORKINGFOREMPLOYER',
+                                 'BIZSIZE', 'INCOME', 'WRITING_AVG', 'READING_AVG', 'NUMERACY_AVG', 'ICT_AVG', 'PLANNING_AVG', 'INFLUENCE_AVG', 
+                       'PHYSICAL_AVG', 'KNOWLEDGE_AVG', 'LEADERSHIP_AVG']
+    # If you're not employed, then employment-related info is None
+    data_subset_not_employed[cols_to_set_none] = data_subset_not_employed[cols_to_set_none].fillna('None')
+
+    data_subset_not_employed = data_subset_not_employed.replace('No data', np.nan)
+    data_subset_not_employed = data_subset_not_employed.dropna()
+
+    if keep_only_employed == True:
+        return data_subset_employed
+    
+    data_subset_withoutna = pd.concat([data_subset_employed, data_subset_not_employed], axis = 0)
+    data_subset_withoutna.loc[data_subset_withoutna['OCCUPATION_1D'] == 'No paid work for last 5 years', 'OCCUPATION_1D'] = 'None'
+    
+    return data_subset_withoutna
+
+
+def add_char_before_cat_vars(df):
+    # Add ~ in front of the categorical variables - to help later for the splitting of variable and level 
+    df['OCCUPATION_1D'] = df['OCCUPATION_1D'].apply(lambda x: '~' + x)
+    df['OCCUPATION'] = df['OCCUPATION'].apply(lambda x: '~' + x)
+    df['COUNTRY'] = df['COUNTRY'].apply(lambda x: '~' + x)
+    df['INDUSTRY'] = df['INDUSTRY'].apply(lambda x: '~' + x)
+    df['GENDER_R'] = df['GENDER_R'].apply(lambda x: '~' + x)    
+    return df
